@@ -1,0 +1,183 @@
+-- Advanced Script Hub
+-- Designed for Lua-based engines
+
+-- Table to store all registered scripts
+local ScriptHub = {
+    scripts = {}, -- Stores all loaded scripts
+    activeScripts = {}, -- Tracks currently running scripts
+}
+
+-- Function to register a new script
+function ScriptHub:registerScript(name, scriptFunction)
+    if self.scripts[name] then
+        print("Script with name '" .. name .. "' already exists!")
+        return
+    end
+    self.scripts[name] = scriptFunction
+    print("Script '" .. name .. "' has been registered successfully!")
+end
+
+-- Function to execute a script by name
+function ScriptHub:runScript(name, ...)
+    local script = self.scripts[name]
+    if not script then
+        print("Script '" .. name .. "' not found!")
+        return
+    end
+
+    -- Execute the script and store it in activeScripts
+    local success, result = pcall(script, ...)
+    if success then
+        self.activeScripts[name] = true
+        print("Script '" .. name .. "' executed successfully!")
+    else
+        print("Error executing script '" .. name .. "': " .. result)
+    end
+end
+
+-- Function to stop a running script
+function ScriptHub:stopScript(name)
+    if not self.activeScripts[name] then
+        print("Script '" .. name .. "' is not currently running!")
+        return
+    end
+
+    self.activeScripts[name] = nil
+    print("Script '" .. name .. "' has been stopped.")
+end
+
+-- Function to list all registered scripts
+function ScriptHub:listScripts()
+    print("Registered Scripts:")
+    for name, _ in pairs(self.scripts) do
+        print("- " .. name)
+    end
+end
+
+-- Function to list all active scripts
+function ScriptHub:listActiveScripts()
+    print("Active Scripts:")
+    for name, _ in pairs(self.activeScripts) do
+        print("- " .. name)
+    end
+end
+
+-- ESP Script
+local function createESP(player)
+    if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then return end
+
+    local espBox = Instance.new("BoxHandleAdornment")
+    espBox.Size = Vector3.new(2, 5, 1)  -- Adjust size as needed
+    espBox.Color3 = Color3.fromRGB(255, 0, 0)  -- Red color for enemy
+    espBox.Adornee = player.Character:FindFirstChild("HumanoidRootPart")
+    espBox.AlwaysOnTop = true
+    espBox.ZIndex = 10
+    espBox.Parent = game.Workspace
+end
+
+local function espScript()
+    local players = game:GetService("Players")
+    for _, player in pairs(players:GetPlayers()) do
+        if player ~= players.LocalPlayer then
+            createESP(player)
+        end
+    end
+    players.PlayerAdded:Connect(function(player)
+        player.CharacterAdded:Connect(function()
+            createESP(player)
+        end)
+    end)
+end
+
+-- Noclip Script
+local function noclipScript()
+    local userInputService = game:GetService("UserInputService")
+    local character = game.Players.LocalPlayer.Character or game.Players.LocalPlayer.CharacterAdded:Wait()
+    local noclip = false
+
+    local function toggleNoclip()
+        noclip = not noclip
+        local humanoid = character:FindFirstChild("Humanoid")
+        if humanoid then
+            humanoid.PlatformStand = noclip
+        end
+    end
+
+    userInputService.InputBegan:Connect(function(input, gameProcessed)
+        if gameProcessed then return end
+        if input.KeyCode == Enum.KeyCode.N then
+            toggleNoclip()
+        end
+    end)
+
+    game:GetService("RunService").Heartbeat:Connect(function()
+        if noclip then
+            local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+            if humanoidRootPart then
+                humanoidRootPart.CFrame = humanoidRootPart.CFrame + (character.Humanoid.MoveDirection * 0.5)
+            end
+        end
+    end)
+end
+
+-- Fly Script
+local function flyScript()
+    local userInputService = game:GetService("UserInputService")
+    local character = game.Players.LocalPlayer.Character or game.Players.LocalPlayer.CharacterAdded:Wait()
+    local flying = false
+
+    local flyHeight = 50
+    local flySpeed = 0.5
+
+    local function toggleFly()
+        flying = not flying
+        local humanoid = character:FindFirstChild("Humanoid")
+        if humanoid then
+            humanoid.PlatformStand = flying
+        end
+    end
+
+    userInputService.InputBegan:Connect(function(input, gameProcessed)
+        if gameProcessed then return end
+        if input.KeyCode == Enum.KeyCode.F then
+            toggleFly()
+        end
+    end)
+
+    game:GetService("RunService").Heartbeat:Connect(function()
+        if flying then
+            local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+            if humanoidRootPart then
+                local moveDirection = Vector3.zero
+                if userInputService:IsKeyDown(Enum.KeyCode.W) then
+                    moveDirection = moveDirection + humanoidRootPart.CFrame.LookVector
+                end
+                if userInputService:IsKeyDown(Enum.KeyCode.A) then
+                    moveDirection = moveDirection - humanoidRootPart.CFrame.RightVector
+                end
+                if userInputService:IsKeyDown(Enum.KeyCode.S) then
+                    moveDirection = moveDirection - humanoidRootPart.CFrame.LookVector
+                end
+                if userInputService:IsKeyDown(Enum.KeyCode.D) then
+                    moveDirection = moveDirection + humanoidRootPart.CFrame.RightVector
+                end
+                humanoidRootPart.CFrame = humanoidRootPart.CFrame + moveDirection * flySpeed
+                humanoidRootPart.Position = Vector3.new(humanoidRootPart.Position.X, flyHeight, humanoidRootPart.Position.Z)
+            end
+        end
+    end)
+end
+
+-- Register the scripts
+ScriptHub:registerScript("ESP", espScript)
+ScriptHub:registerScript("Noclip", noclipScript)
+ScriptHub:registerScript("Fly", flyScript)
+
+-- Demonstration of Script Hub functionality
+ScriptHub:listScripts() -- List all registered scripts
+ScriptHub:runScript("ESP") -- Run ESP Script
+ScriptHub:runScript("Noclip") -- Run Noclip Script
+ScriptHub:runScript("Fly") -- Run Fly Script
+ScriptHub:listActiveScripts() -- List all active scripts
+ScriptHub:stopScript("ESP") -- Stop ESP Script
+ScriptHub:listActiveScripts() -- List active scripts after stopping one
