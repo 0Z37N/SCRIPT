@@ -1,183 +1,103 @@
--- Advanced Script Hub
--- Designed for Lua-based engines
+-- Script to optimize graphics, improve FPS, enable noclip, and make the player invisible
+-- Use at your own discretion and ensure compliance with Roblox's Terms of Service
 
--- Table to store all registered scripts
-local ScriptHub = {
-    scripts = {}, -- Stores all loaded scripts
-    activeScripts = {}, -- Tracks currently running scripts
-}
+local function optimizeGraphics()
+    -- Get the current player's settings
+    local player = game:GetService("Players").LocalPlayer
+    local settings = game:GetService("UserSettings")
+    local renderSettings = settings():GetService("RenderSettings")
 
--- Function to register a new script
-function ScriptHub:registerScript(name, scriptFunction)
-    if self.scripts[name] then
-        print("Script with name '" .. name .. "' already exists!")
-        return
+    -- Lower graphics quality for better FPS
+    settings().Rendering.QualityLevel = Enum.QualityLevel.Level01 -- Minimum Quality
+
+    -- Disable shadows
+    renderSettings.GlobalShadows = false
+
+    -- Reduce the rendering distance
+    renderSettings.ViewModelLODDistance = 50 -- Lower distance for rendering
+
+    -- Disable textures (optional: might impact visuals significantly)
+    for _, desc in pairs(workspace:GetDescendants()) do
+        if desc:IsA("Texture") or desc:IsA("Decal") then
+            desc:Destroy()
+        end
     end
-    self.scripts[name] = scriptFunction
-    print("Script '" .. name .. "' has been registered successfully!")
+
+    -- Optimize particles (reduce density or disable them)
+    for _, particle in pairs(workspace:GetDescendants()) do
+        if particle:IsA("ParticleEmitter") or particle:IsA("Trail") then
+            particle.Enabled = false
+        end
+    end
+
+    print("Graphics optimization applied successfully!")
 end
 
--- Function to execute a script by name
-function ScriptHub:runScript(name, ...)
-    local script = self.scripts[name]
-    if not script then
-        print("Script '" .. name .. "' not found!")
-        return
-    end
+-- Call the optimization function
+optimizeGraphics()
 
-    -- Execute the script and store it in activeScripts
-    local success, result = pcall(script, ...)
-    if success then
-        self.activeScripts[name] = true
-        print("Script '" .. name .. "' executed successfully!")
+-- Noclip functionality
+local player = game.Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local noclip = false
+
+local function toggleNoclip()
+    noclip = not noclip
+    if noclip then
+        for _, part in pairs(character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
+            end
+        end
     else
-        print("Error executing script '" .. name .. "': " .. result)
-    end
-end
-
--- Function to stop a running script
-function ScriptHub:stopScript(name)
-    if not self.activeScripts[name] then
-        print("Script '" .. name .. "' is not currently running!")
-        return
-    end
-
-    self.activeScripts[name] = nil
-    print("Script '" .. name .. "' has been stopped.")
-end
-
--- Function to list all registered scripts
-function ScriptHub:listScripts()
-    print("Registered Scripts:")
-    for name, _ in pairs(self.scripts) do
-        print("- " .. name)
-    end
-end
-
--- Function to list all active scripts
-function ScriptHub:listActiveScripts()
-    print("Active Scripts:")
-    for name, _ in pairs(self.activeScripts) do
-        print("- " .. name)
-    end
-end
-
--- ESP Script
-local function createESP(player)
-    if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then return end
-
-    local espBox = Instance.new("BoxHandleAdornment")
-    espBox.Size = Vector3.new(2, 5, 1)  -- Adjust size as needed
-    espBox.Color3 = Color3.fromRGB(255, 0, 0)  -- Red color for enemy
-    espBox.Adornee = player.Character:FindFirstChild("HumanoidRootPart")
-    espBox.AlwaysOnTop = true
-    espBox.ZIndex = 10
-    espBox.Parent = game.Workspace
-end
-
-local function espScript()
-    local players = game:GetService("Players")
-    for _, player in pairs(players:GetPlayers()) do
-        if player ~= players.LocalPlayer then
-            createESP(player)
-        end
-    end
-    players.PlayerAdded:Connect(function(player)
-        player.CharacterAdded:Connect(function()
-            createESP(player)
-        end)
-    end)
-end
-
--- Noclip Script
-local function noclipScript()
-    local userInputService = game:GetService("UserInputService")
-    local character = game.Players.LocalPlayer.Character or game.Players.LocalPlayer.CharacterAdded:Wait()
-    local noclip = false
-
-    local function toggleNoclip()
-        noclip = not noclip
-        local humanoid = character:FindFirstChild("Humanoid")
-        if humanoid then
-            humanoid.PlatformStand = noclip
-        end
-    end
-
-    userInputService.InputBegan:Connect(function(input, gameProcessed)
-        if gameProcessed then return end
-        if input.KeyCode == Enum.KeyCode.N then
-            toggleNoclip()
-        end
-    end)
-
-    game:GetService("RunService").Heartbeat:Connect(function()
-        if noclip then
-            local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-            if humanoidRootPart then
-                humanoidRootPart.CFrame = humanoidRootPart.CFrame + (character.Humanoid.MoveDirection * 0.5)
+        for _, part in pairs(character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = true
             end
         end
-    end)
+    end
 end
 
--- Fly Script
-local function flyScript()
-    local userInputService = game:GetService("UserInputService")
-    local character = game.Players.LocalPlayer.Character or game.Players.LocalPlayer.CharacterAdded:Wait()
-    local flying = false
-
-    local flyHeight = 50
-    local flySpeed = 0.5
-
-    local function toggleFly()
-        flying = not flying
-        local humanoid = character:FindFirstChild("Humanoid")
-        if humanoid then
-            humanoid.PlatformStand = flying
-        end
+local function onRenderStep()
+    if noclip then
+        character:TranslateBy(Vector3.new(0, 0, 0)) -- Adjust position as needed
     end
+end
 
-    userInputService.InputBegan:Connect(function(input, gameProcessed)
-        if gameProcessed then return end
-        if input.KeyCode == Enum.KeyCode.F then
-            toggleFly()
-        end
-    end)
+game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessed)
+    if not gameProcessed and input.KeyCode == Enum.KeyCode.E then
+        toggleNoclip() -- Toggle noclip when 'E' key is pressed
+    end
+end)
 
-    game:GetService("RunService").Heartbeat:Connect(function()
-        if flying then
-            local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-            if humanoidRootPart then
-                local moveDirection = Vector3.zero
-                if userInputService:IsKeyDown(Enum.KeyCode.W) then
-                    moveDirection = moveDirection + humanoidRootPart.CFrame.LookVector
-                end
-                if userInputService:IsKeyDown(Enum.KeyCode.A) then
-                    moveDirection = moveDirection - humanoidRootPart.CFrame.RightVector
-                end
-                if userInputService:IsKeyDown(Enum.KeyCode.S) then
-                    moveDirection = moveDirection - humanoidRootPart.CFrame.LookVector
-                end
-                if userInputService:IsKeyDown(Enum.KeyCode.D) then
-                    moveDirection = moveDirection + humanoidRootPart.CFrame.RightVector
-                end
-                humanoidRootPart.CFrame = humanoidRootPart.CFrame + moveDirection * flySpeed
-                humanoidRootPart.Position = Vector3.new(humanoidRootPart.Position.X, flyHeight, humanoidRootPart.Position.Z)
+game:GetService("RunService").RenderStepped:Connect(onRenderStep)
+
+-- Invisible functionality
+local invisible = false
+
+local function toggleInvisible()
+    invisible = not invisible
+    if invisible then
+        for _, part in pairs(character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.Transparency = 1 -- Set transparency to 1 (fully invisible)
+                part.CanCollide = false -- Disable collision
             end
         end
-    end)
+    else
+        for _, part in pairs(character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.Transparency = 0 -- Set transparency to 0 (visible again)
+                part.CanCollide = true -- Enable collision
+            end
+        end
+    end
 end
 
--- Register the scripts
-ScriptHub:registerScript("ESP", espScript)
-ScriptHub:registerScript("Noclip", noclipScript)
-ScriptHub:registerScript("Fly", flyScript)
+game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessed)
+    if not gameProcessed and input.KeyCode == Enum.KeyCode.Q then
+        toggleInvisible() -- Toggle invisibility when 'Q' key is pressed
+    end
+end)
 
--- Demonstration of Script Hub functionality
-ScriptHub:listScripts() -- List all registered scripts
-ScriptHub:runScript("ESP") -- Run ESP Script
-ScriptHub:runScript("Noclip") -- Run Noclip Script
-ScriptHub:runScript("Fly") -- Run Fly Script
-ScriptHub:listActiveScripts() -- List all active scripts
-ScriptHub:stopScript("ESP") -- Stop ESP Script
-ScriptHub:listActiveScripts() -- List active scripts after stopping one
+print("Invisible, Noclip, and Graphics Optimization scripts loaded successfully!")
